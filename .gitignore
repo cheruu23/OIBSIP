@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+WebDev-L3-PizzaApp/backend/node_modules/
+WebDev-L3-PizzaApp/frontend/node_modules/
+
+# Environment secrets — NEVER commit these
+WebDev-L3-PizzaApp/backend/.env
+.env
+.env.local
+.env.production
+
+# Build output
+WebDev-L3-PizzaApp/frontend/build/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
