@@ -3,24 +3,27 @@ const crypto = require('crypto');
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 
-// --- Email Transporter ---
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-    }
-});
+// --- Resend client ---
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 // --- Helpers ---
 const generateToken = (id) =>
     jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '30d' });
 
-const sendMail = (options) =>
-    transporter.sendMail(options)
-        .catch(err => console.error('⚠️ Email send failed:', err.message));
+const sendMail = async ({ to, subject, html }) => {
+    try {
+        await resend.emails.send({
+            from: 'PizzaApp <onboarding@resend.dev>',
+            to,
+            subject,
+            html
+        });
+    } catch (err) {
+        console.error('⚠️ Email send failed:', err.message);
+    }
+};
 
 // @desc    Register a new user
 // @route   POST /api/auth/register
@@ -53,7 +56,6 @@ const registerUser = async (req, res) => {
 
         const verifyUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email/${verificationToken}`;
         sendMail({
-            from: `"🍕 PizzaApp" <${process.env.EMAIL_USER}>`,
             to: email,
             subject: '🍕 PizzaApp — Verify Your Email',
             html: `
@@ -111,7 +113,6 @@ const resendVerification = async (req, res) => {
 
         const verifyUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email/${verificationToken}`;
         sendMail({
-            from: `"🍕 PizzaApp" <${process.env.EMAIL_USER}>`,
             to: email,
             subject: '🍕 PizzaApp — New Verification Link',
             html: `
@@ -201,7 +202,6 @@ const forgotPassword = async (req, res) => {
 
         const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password/${resetToken}`;
         sendMail({
-            from: `"🍕 PizzaApp" <${process.env.EMAIL_USER}>`,
             to: email,
             subject: '🍕 PizzaApp — Password Reset Request',
             html: `

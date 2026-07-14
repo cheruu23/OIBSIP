@@ -1,42 +1,28 @@
 // backend/config/cron.js
 const cron = require('node-cron');
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 const Inventory = require('../models/Inventory');
 
-// Configure your email transporter wrapper
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS // Requires a secure Google App Password, not your raw email pass
-    }
-});
-
 const initScheduledJobs = () => {
-    // Schedule task execution patterns (This standard string matches: Once every day at midnight)
-    // For fast local testing, you can shift this expression string to "*/10 * * * * *" to run every 10 seconds!
     cron.schedule('0 0 * * *', async () => {
-        console.log('🤖 Running scheduled automated raw material stock diagnostic scans...');
-        
+        console.log('🤖 Running scheduled low-stock scan...');
         try {
-            // Find items where current remaining quantity drops below threshold requirements
-            const lowStockItems = await Inventory.find({ $expr: { $lt: ["$quantity", "$minThreshold"] } });
-
-            if (lowStockItems.length > 0) {
-                let alertDetails = lowStockItems.map(item => `- ${item.itemName}: Only ${item.quantity} units left! (Limit: ${item.minThreshold})`).join('\n');
-
-                const mailOptions = {
-                    from: process.env.EMAIL_USER,
-                    to: process.env.EMAIL_USER, // Alerts dispatch straight back to the administrator address
-                    subject: '🚨 CRITICAL ALERT: Pizza App Low Stock Warning',
-                    text: `Hello Administrator,\n\nThe backend tracking script noticed critical inventory drops below configurable thresholds:\n\n${alertDetails}\n\nPlease update supply limits immediately inside your controller dashboard.`
-                };
-
-                await transporter.sendMail(mailOptions);
-                console.log('✉️ Automated low-stock warning dispatched to administrator.');
+            const lowStockItems = await Inventory.find({ $expr: { $lt: ['$quantity', '$minThreshold'] } });
+            if (lowStockItems.length > 0 && process.env.RESEND_API_KEY && process.env.EMAIL_USER) {
+                const resend = new Resend(process.env.RESEND_API_KEY);
+                const alertDetails = lowStockItems
+                    .map(i => `<li><strong>${i.itemName}</strong>: ${i.quantity} units left (min: ${i.minThreshold})</li>`)
+                    .join('');
+                await resend.emails.send({
+                    from: 'PizzaApp <onboarding@resend.dev>',
+                    to: process.env.EMAIL_USER,
+                    subject: '🚨 PizzaApp — Low Stock Alert',
+                    html: `<h2>Low Stock Warning</h2><ul>${alertDetails}</ul><p>Please restock via the admin dashboard.</p>`
+                });
+                console.log('✉️ Low-stock alert sent.');
             }
         } catch (error) {
-            console.error('❌ Scheduled tracking job routine failed:', error.message);
+            console.error('❌ Cron job failed:', error.message);
         }
     });
 };
