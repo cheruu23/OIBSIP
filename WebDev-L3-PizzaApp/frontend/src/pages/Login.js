@@ -10,50 +10,21 @@ export default function Login() {
     const navigate = useNavigate();
     const [form, setForm] = useState({ email: '', password: '' });
     const [loading, setLoading] = useState(false);
-    const [unverified, setUnverified] = useState(false);
-    const [resending, setResending] = useState(false);
 
-    const handleChange = (e) => {
-        setForm({ ...form, [e.target.name]: e.target.value });
-        if (unverified) setUnverified(false); // clear banner on edit
-    };
+    const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
-        setUnverified(false);
         try {
             const { data } = await api.post('/auth/login', form);
             login(data);
             toast.success(`Welcome back, ${data.name}!`);
             navigate('/dashboard');
         } catch (err) {
-            const msg = err.response?.data?.message || 'Login failed';
-            // Show resend option if email not verified
-            if (err.response?.status === 403 && msg.toLowerCase().includes('verify')) {
-                setUnverified(true);
-            } else {
-                toast.error(msg);
-            }
+            toast.error(err.response?.data?.message || 'Login failed');
         } finally {
             setLoading(false);
-        }
-    };
-
-    const handleResend = async () => {
-        if (!form.email) {
-            toast.error('Enter your email address first');
-            return;
-        }
-        setResending(true);
-        try {
-            const { data } = await api.post('/auth/resend-verification', { email: form.email });
-            toast.success(data.message);
-            setUnverified(false);
-        } catch (err) {
-            toast.error(err.response?.data?.message || 'Failed to resend email');
-        } finally {
-            setResending(false);
         }
     };
 
@@ -62,22 +33,6 @@ export default function Login() {
             <div className="auth-card">
                 <h1>🍕 Welcome Back</h1>
                 <p className="auth-subtitle">Sign in to your account</p>
-
-                {/* Unverified email banner */}
-                {unverified && (
-                    <div className="info-banner error" style={{ marginBottom: '1rem' }}>
-                        <strong>📧 Email not verified.</strong><br />
-                        Please check your inbox and click the verification link before logging in.
-                        <button
-                            className="btn-resend"
-                            onClick={handleResend}
-                            disabled={resending}
-                            style={{ marginTop: '0.6rem', display: 'block', width: '100%' }}
-                        >
-                            {resending ? 'Sending…' : '↻ Resend Verification Email'}
-                        </button>
-                    </div>
-                )}
 
                 <form onSubmit={handleSubmit} className="auth-form">
                     <div className="form-group">
