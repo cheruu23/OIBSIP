@@ -13,13 +13,18 @@ const generateToken = (id) =>
     jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '30d' });
 
 const sendMail = async ({ to, subject, html }) => {
+    if (!process.env.RESEND_API_KEY) {
+        console.error('⚠️ RESEND_API_KEY is not set');
+        return;
+    }
     try {
-        await resend.emails.send({
+        const result = await resend.emails.send({
             from: 'PizzaApp <onboarding@resend.dev>',
             to,
             subject,
             html
         });
+        console.log('✉️ Email sent:', JSON.stringify(result));
     } catch (err) {
         console.error('⚠️ Email send failed:', err.message);
     }
