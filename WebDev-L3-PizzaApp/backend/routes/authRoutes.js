@@ -7,11 +7,13 @@ const {
     loginUser,
     adminLogin,
     forgotPassword,
-    resetPassword
+    resetPassword,
+    resendVerification
 } = require('../controllers/authController');
 
 router.post('/register', registerUser);
 router.get('/verify-email/:token', verifyEmail);
+router.post('/resend-verification', resendVerification);
 router.post('/login', loginUser);
 router.post('/admin-login', adminLogin);
 router.post('/forgot-password', forgotPassword);

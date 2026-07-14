@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../api/axios';
 import './Auth.css';
 
 export default function Register() {
-    const navigate = useNavigate();
     const [form, setForm] = useState({ name: '', email: '', password: '', confirm: '' });
     const [loading, setLoading] = useState(false);
+    const [registered, setRegistered] = useState(false);
+    const [registeredEmail, setRegisteredEmail] = useState('');
+    const [resending, setResending] = useState(false);
 
     const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
@@ -23,13 +25,13 @@ export default function Register() {
         }
         setLoading(true);
         try {
-            const { data } = await api.post('/auth/register', {
+            await api.post('/auth/register', {
                 name: form.name,
                 email: form.email,
                 password: form.password
             });
-            toast.success(data.message);
-            navigate('/login');
+            setRegisteredEmail(form.email);
+            setRegistered(true);
         } catch (err) {
             toast.error(err.response?.data?.message || 'Registration failed');
         } finally {
@@ -37,6 +39,58 @@ export default function Register() {
         }
     };
 
+    const handleResend = async () => {
+        setResending(true);
+        try {
+            const { data } = await api.post('/auth/resend-verification', { email: registeredEmail });
+            toast.success(data.message);
+        } catch (err) {
+            toast.error(err.response?.data?.message || 'Failed to resend email');
+        } finally {
+            setResending(false);
+        }
+    };
+
+    // ── Success screen ──
+    if (registered) {
+        return (
+            <div className="auth-page">
+                <div className="auth-card" style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '3.5rem', marginBottom: '0.75rem' }}>📧</div>
+                    <h1 style={{ fontSize: '1.5rem', marginBottom: '0.4rem' }}>Check your inbox!</h1>
+                    <p className="auth-subtitle" style={{ marginBottom: '1.25rem' }}>
+                        We sent a verification link to
+                    </p>
+                    <div className="email-highlight">{registeredEmail}</div>
+                    <p style={{ color: '#888', fontSize: '0.85rem', margin: '1.25rem 0' }}>
+                        Click the link in that email to verify your account, then come back to log in.
+                        The link expires in <strong>24 hours</strong>.
+                    </p>
+
+                    <div className="info-banner success" style={{ marginBottom: '1.25rem', textAlign: 'left' }}>
+                        ✅ Account created successfully! One step left — verify your email.
+                    </div>
+
+                    <Link to="/login" className="btn-primary" style={{ display: 'block', marginBottom: '0.75rem' }}>
+                        Go to Login →
+                    </Link>
+
+                    <p style={{ color: '#aaa', fontSize: '0.82rem', marginBottom: '0.5rem' }}>
+                        Didn't receive the email?
+                    </p>
+                    <button
+                        className="btn-resend"
+                        onClick={handleResend}
+                        disabled={resending}
+                    >
+                        {resending ? 'Sending…' : '↻ Resend Verification Email'}
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    // ── Registration form ──
     return (
         <div className="auth-page">
             <div className="auth-card">

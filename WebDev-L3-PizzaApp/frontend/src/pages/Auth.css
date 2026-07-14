@@ -140,3 +140,40 @@
     border: 1px solid #feb2b2;
     color: #c53030;
 }
+
+/* Email highlight box on registration success */
+.email-highlight {
+    display: inline-block;
+    background: #fff5f5;
+    border: 1.5px solid #feb2b2;
+    border-radius: 8px;
+    padding: 8px 20px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #c53030;
+    word-break: break-all;
+    margin-bottom: 0.5rem;
+}
+
+/* Resend button */
+.btn-resend {
+    background: none;
+    border: 1.5px solid #e2e8f0;
+    color: #555;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.btn-resend:hover:not(:disabled) {
+    border-color: #e53e3e;
+    color: #e53e3e;
+    background: #fff5f5;
+}
+.btn-resend:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}

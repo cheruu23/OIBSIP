@@ -45,34 +45,24 @@ const registerUser = async (req, res) => {
             emailVerificationExpires: verificationExpires
         });
 
-        // Try to send verification email — failure doesn't block registration
-        let emailSent = false;
-        try {
-            const verifyUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email/${verificationToken}`;
-            await transporter.sendMail({
-                from: process.env.EMAIL_USER,
-                to: email,
-                subject: '🍕 PizzaApp — Verify Your Email',
-                html: `<h2>Welcome to PizzaApp, ${name}!</h2>
-                       <p>Click below to verify your email address:</p>
-                       <a href="${verifyUrl}" style="background:#e53e3e;color:white;padding:12px 24px;border-radius:6px;text-decoration:none;display:inline-block">Verify Email</a>
-                       <p>This link expires in 24 hours.</p>`
-            });
-            emailSent = true;
-        } catch (emailError) {
-            console.error('⚠️ Verification email failed:', emailError.message);
-            // Auto-verify the user if email sending fails (so they can still log in)
-            user.isVerified = true;
-            user.emailVerificationToken = undefined;
-            user.emailVerificationExpires = undefined;
-            await user.save();
-        }
+        // Send verification email — required to complete registration
+        const verifyUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email/${verificationToken}`;
+        await transporter.sendMail({
+            from: `"🍕 PizzaApp" <${process.env.EMAIL_USER}>`,
+            to: email,
+            subject: '🍕 PizzaApp — Verify Your Email',
+            html: `
+            <div style="font-family:Inter,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#fff;border-radius:12px;border:1px solid #fee2e2">
+              <h2 style="color:#e53e3e;margin-bottom:8px">🍕 Welcome to PizzaApp!</h2>
+              <p style="color:#444;margin-bottom:24px">Hi <strong>${name}</strong>, thanks for signing up! Click below to verify your email address and activate your account.</p>
+              <a href="${verifyUrl}" style="display:inline-block;background:#e53e3e;color:white;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px">
+                ✅ Verify My Email
+              </a>
+              <p style="color:#aaa;font-size:13px;margin-top:24px">This link expires in 24 hours. If you didn't create an account, ignore this email.</p>
+            </div>`
+        });
 
-        const message = emailSent
-            ? 'Registration successful! Please check your email to verify your account.'
-            : 'Registration successful! Email service is unavailable — you can log in directly.';
-
-        res.status(201).json({ message });
+        res.status(201).json({ message: 'Registration successful! Please check your email to verify your account.' });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -223,4 +213,41 @@ const resetPassword = async (req, res) => {
     }
 };
 
-module.exports = { registerUser, verifyEmail, loginUser, adminLogin, forgotPassword, resetPassword };
+// @desc    Resend verification email
+// @route   POST /api/auth/resend-verification
+const resendVerification = async (req, res) => {
+    const { email } = req.body;
+    try {
+        const user = await User.findOne({ email });
+        if (!user) return res.status(404).json({ message: 'No account found with that email.' });
+        if (user.isVerified) return res.status(400).json({ message: 'This account is already verified.' });
+
+        // Generate fresh token
+        const verificationToken = crypto.randomBytes(32).toString('hex');
+        user.emailVerificationToken = verificationToken;
+        user.emailVerificationExpires = Date.now() + 24 * 60 * 60 * 1000;
+        await user.save();
+
+        const verifyUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email/${verificationToken}`;
+        await transporter.sendMail({
+            from: `"🍕 PizzaApp" <${process.env.EMAIL_USER}>`,
+            to: email,
+            subject: '🍕 PizzaApp — New Verification Link',
+            html: `
+            <div style="font-family:Inter,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#fff;border-radius:12px;border:1px solid #fee2e2">
+              <h2 style="color:#e53e3e">🍕 New Verification Link</h2>
+              <p style="color:#444">Hi <strong>${user.name}</strong>, here's your new verification link:</p>
+              <a href="${verifyUrl}" style="display:inline-block;background:#e53e3e;color:white;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px">
+                ✅ Verify My Email
+              </a>
+              <p style="color:#aaa;font-size:13px;margin-top:24px">This link expires in 24 hours.</p>
+            </div>`
+        });
+
+        res.json({ message: 'Verification email resent! Check your inbox.' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+module.exports = { registerUser, verifyEmail, loginUser, adminLogin, forgotPassword, resetPassword, resendVerification };
