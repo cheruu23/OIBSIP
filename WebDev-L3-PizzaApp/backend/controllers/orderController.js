@@ -9,6 +9,8 @@ const razorpayInstance = new Razorpay({
     key_secret: process.env.RAZORPAY_KEY_SECRET
 });
 
+console.log('Razorpay KEY_ID loaded:', process.env.RAZORPAY_KEY_ID ? process.env.RAZORPAY_KEY_ID.slice(0,15) + '...' : 'MISSING');
+
 // @desc    Step 1: Initialize an order session with Razorpay gateway
 // @route   POST /api/orders/checkout
 const initializeCheckout = async (req, res) => {
@@ -24,7 +26,12 @@ const initializeCheckout = async (req, res) => {
         const razorpayOrder = await razorpayInstance.orders.create(options);
         res.status(201).json(razorpayOrder);
     } catch (error) {
-        res.status(500).json({ message: 'Razorpay session init failed', error: error.message });
+        console.error('Razorpay error:', JSON.stringify(error));
+        res.status(500).json({ 
+            message: 'Razorpay session init failed', 
+            error: error.message,
+            detail: error.error || error.description || JSON.stringify(error)
+        });
     }
 };
 
