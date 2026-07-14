@@ -2,20 +2,38 @@ import React, { createContext, useContext, useState } from 'react';
 
 const CartContext = createContext(null);
 
-// Price config mirrors what the Pizza model uses
+// Names must exactly match seedInventory.js itemName values
 const PRICING = {
-    base: { 'Thin Crust': 0, 'Thick Crust': 30, 'Cheese Burst': 60, 'Whole Wheat': 20 },
-    sauce: { 'Tomato': 0, 'Pesto': 20, 'White Sauce': 20, 'BBQ': 30 },
-    cheese: { 'Mozzarella': 0, 'Cheddar': 30, 'Parmesan': 40, 'Vegan Cheese': 50 },
-    veggie: { default: 15 } // per veggie topping
+    base: {
+        'Thin Crust':   0,
+        'Thick Crust':  30,
+        'Cheese Burst': 60,
+        'Whole Wheat':  20,
+        'Gluten Free':  40
+    },
+    sauce: {
+        'Tomato Marinara':   0,
+        'Pesto':             20,
+        'Barbecue':          30,
+        'White Garlic':      20,
+        'Spicy Arrabbiata':  25
+    },
+    cheese: {
+        'Mozzarella':  0,
+        'Cheddar':     30,
+        'Parmesan':    40,
+        'Gouda':       35,
+        'Vegan Cheese': 50
+    },
+    veggie: { perItem: 15 }
 };
 
 export const calculatePizzaPrice = (pizza) => {
     let price = 250; // base price
-    price += PRICING.base[pizza.base] || 0;
+    price += PRICING.base[pizza.base]   || 0;
     price += PRICING.sauce[pizza.sauce] || 0;
     price += PRICING.cheese[pizza.cheese] || 0;
-    price += (pizza.vegetables?.length || 0) * (PRICING.veggie.default);
+    price += (pizza.vegetables?.length || 0) * PRICING.veggie.perItem;
     return price;
 };
 

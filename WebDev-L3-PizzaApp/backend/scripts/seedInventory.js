@@ -1,7 +1,8 @@
 // backend/scripts/seedInventory.js
 // Run with: node scripts/seedInventory.js
 const dotenv = require('dotenv');
-dotenv.config({ path: '../.env' });
+const path = require('path');
+dotenv.config({ path: path.join(__dirname, '../.env') });
 
 const mongoose = require('mongoose');
 const Inventory = require('../models/Inventory');
@@ -49,7 +50,7 @@ async function seed() {
             await Inventory.findOneAndUpdate(
                 { itemName: item.itemName },
                 item,
-                { upsert: true, new: true }
+                { upsert: true, returnDocument: 'after' }
             );
         }
         console.log('✅ Inventory seeded successfully!');

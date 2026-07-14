@@ -20,7 +20,7 @@ export default function Login() {
             const { data } = await api.post('/auth/login', form);
             login(data);
             toast.success(`Welcome back, ${data.name}!`);
-            navigate('/build');
+            navigate('/dashboard');
         } catch (err) {
             toast.error(err.response?.data?.message || 'Login failed');
         } finally {

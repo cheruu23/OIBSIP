@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { useCart, calculatePizzaPrice } from '../context/CartContext';
 import './Dashboard.css';
 
-// Preset menu pizzas seeded via scripts/seedInventory — matched to Pizza model
+// Preset menu pizzas — names match seedInventory.js exactly
 const PRESET_PIZZAS = [
     {
         id: 'margherita',
@@ -50,10 +50,10 @@ const PRESET_PIZZAS = [
         cheese: 'Parmesan',
         vegetables: ['Mushrooms', 'Corn'],
         emoji: '🌿',
-        tag: 'Chef\'s Pick'
+        tag: "Chef's Pick"
     },
     {
-        id: 'spicy-arrabbiata',
+        id: 'spicy-volcano',
         name: 'Spicy Volcano',
         description: 'Fiery arrabbiata, mozzarella, jalapeños, and onions. Not for the faint-hearted!',
         base: 'Cheese Burst',

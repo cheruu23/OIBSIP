@@ -2,7 +2,8 @@
 // Run with: node scripts/createAdmin.js
 // Creates a default admin account
 const dotenv = require('dotenv');
-dotenv.config({ path: '../.env' });
+const path = require('path');
+dotenv.config({ path: path.join(__dirname, '../.env') });
 
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
