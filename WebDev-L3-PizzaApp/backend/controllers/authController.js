@@ -32,7 +32,6 @@ const registerUser = async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        // Generate a secure verification token
         const verificationToken = crypto.randomBytes(32).toString('hex');
         const verificationExpires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
 
@@ -46,19 +45,34 @@ const registerUser = async (req, res) => {
             emailVerificationExpires: verificationExpires
         });
 
-        // Send verification email
-        const verifyUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email/${verificationToken}`;
-        await transporter.sendMail({
-            from: process.env.EMAIL_USER,
-            to: email,
-            subject: '🍕 PizzaApp — Verify Your Email',
-            html: `<h2>Welcome to PizzaApp, ${name}!</h2>
-                   <p>Click below to verify your email address:</p>
-                   <a href="${verifyUrl}" style="background:#e53e3e;color:white;padding:12px 24px;border-radius:6px;text-decoration:none;display:inline-block">Verify Email</a>
-                   <p>This link expires in 24 hours.</p>`
-        });
+        // Try to send verification email — failure doesn't block registration
+        let emailSent = false;
+        try {
+            const verifyUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email/${verificationToken}`;
+            await transporter.sendMail({
+                from: process.env.EMAIL_USER,
+                to: email,
+                subject: '🍕 PizzaApp — Verify Your Email',
+                html: `<h2>Welcome to PizzaApp, ${name}!</h2>
+                       <p>Click below to verify your email address:</p>
+                       <a href="${verifyUrl}" style="background:#e53e3e;color:white;padding:12px 24px;border-radius:6px;text-decoration:none;display:inline-block">Verify Email</a>
+                       <p>This link expires in 24 hours.</p>`
+            });
+            emailSent = true;
+        } catch (emailError) {
+            console.error('⚠️ Verification email failed:', emailError.message);
+            // Auto-verify the user if email sending fails (so they can still log in)
+            user.isVerified = true;
+            user.emailVerificationToken = undefined;
+            user.emailVerificationExpires = undefined;
+            await user.save();
+        }
 
-        res.status(201).json({ message: 'Registration successful! Please check your email to verify your account.' });
+        const message = emailSent
+            ? 'Registration successful! Please check your email to verify your account.'
+            : 'Registration successful! Email service is unavailable — you can log in directly.';
+
+        res.status(201).json({ message });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -161,16 +175,20 @@ const forgotPassword = async (req, res) => {
         user.passwordResetExpires = Date.now() + 60 * 60 * 1000; // 1 hour
         await user.save();
 
-        const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password/${resetToken}`;
-        await transporter.sendMail({
-            from: process.env.EMAIL_USER,
-            to: email,
-            subject: '🍕 PizzaApp — Password Reset Request',
-            html: `<h2>Password Reset</h2>
-                   <p>You requested a password reset. Click below:</p>
-                   <a href="${resetUrl}" style="background:#e53e3e;color:white;padding:12px 24px;border-radius:6px;text-decoration:none;display:inline-block">Reset Password</a>
-                   <p>This link expires in 1 hour. If you didn't request this, ignore this email.</p>`
-        });
+        try {
+            const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password/${resetToken}`;
+            await transporter.sendMail({
+                from: process.env.EMAIL_USER,
+                to: email,
+                subject: '🍕 PizzaApp — Password Reset Request',
+                html: `<h2>Password Reset</h2>
+                       <p>You requested a password reset. Click below:</p>
+                       <a href="${resetUrl}" style="background:#e53e3e;color:white;padding:12px 24px;border-radius:6px;text-decoration:none;display:inline-block">Reset Password</a>
+                       <p>This link expires in 1 hour. If you didn't request this, ignore this email.</p>`
+            });
+        } catch (emailError) {
+            console.error('⚠️ Reset email failed:', emailError.message);
+        }
 
         res.json({ message: 'If that email is registered, a reset link has been sent.' });
     } catch (error) {
