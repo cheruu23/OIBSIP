@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
@@ -88,7 +88,6 @@ const TAG_COLORS = {
 export default function Dashboard() {
     const { user } = useAuth();
     const { addToCart } = useCart();
-    const navigate = useNavigate();
     const [menuPizzas, setMenuPizzas] = useState(PRESET_PIZZAS);
     const [loadingMenu, setLoadingMenu] = useState(true);
 

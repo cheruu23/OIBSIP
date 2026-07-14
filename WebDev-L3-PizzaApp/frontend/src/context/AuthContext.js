@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
 const AuthContext = createContext(null);
 
@@ -16,17 +16,16 @@ export const AuthProvider = ({ children }) => {
         setUser(userData);
     };
 
-    const logout = () => {
+    const logout = useCallback(() => {
         localStorage.removeItem('pizzaUser');
         setUser(null);
-    };
+    }, []);
 
     // Listen for 401 events from the axios interceptor (expired token)
     useEffect(() => {
-        const handleForceLogout = () => logout();
-        window.addEventListener('auth:logout', handleForceLogout);
-        return () => window.removeEventListener('auth:logout', handleForceLogout);
-    }, []);
+        window.addEventListener('auth:logout', logout);
+        return () => window.removeEventListener('auth:logout', logout);
+    }, [logout]);
 
     return (
         <AuthContext.Provider value={{ user, login, logout }}>

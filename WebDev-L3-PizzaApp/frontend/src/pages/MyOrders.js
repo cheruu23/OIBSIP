@@ -4,13 +4,13 @@ import toast from 'react-hot-toast';
 import api from '../api/axios';
 import './MyOrders.css';
 
-const POLL_INTERVAL_MS = 15000; // 15 seconds
+const POLL_INTERVAL_MS = 15000;
 
 const STATUSES = ['Order Received', 'In Kitchen', 'Sent to Delivery'];
 
 const STATUS_CONFIG = {
-    'Order Received': { icon: '📋', color: '#d69e2e', bg: '#fffff0', border: '#f6e05e' },
-    'In Kitchen':     { icon: '👨‍🍳', color: '#dd6b20', bg: '#fffaf0', border: '#fbd38d' },
+    'Order Received':   { icon: '📋', color: '#d69e2e', bg: '#fffff0', border: '#f6e05e' },
+    'In Kitchen':       { icon: '👨‍🍳', color: '#dd6b20', bg: '#fffaf0', border: '#fbd38d' },
     'Sent to Delivery': { icon: '🛵', color: '#38a169', bg: '#f0fff4', border: '#9ae6b4' }
 };
 
@@ -20,19 +20,23 @@ const formatDate = (iso) =>
         hour: '2-digit', minute: '2-digit'
     });
 
-export default function MyOrders() {
-    const [orders, setOrders] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(false);
-    const [expandedId, setExpandedId] = useState(null);
-    const [lastUpdated, setLastUpdated] = useState(null);
-    const [isPolling, setIsPolling] = useState(false);
-    const intervalRef = useRef(null);
-    const mountedRef = useRef(true);
+const hasActiveOrders = (orderList) =>
+    orderList.some(o => o.orderStatus !== 'Sent to Delivery');
 
-    // Check if any order is still in-flight (not delivered yet)
-    const hasActiveOrders = (orderList) =>
-        orderList.some(o => o.orderStatus !== 'Sent to Delivery');
+export default function MyOrders() {
+    const [orders, setOrders]           = useState([]);
+    const [loading, setLoading]         = useState(true);
+    const [error, setError]             = useState(false);
+    const [expandedId, setExpandedId]   = useState(null);
+    const [lastUpdated, setLastUpdated] = useState(null);
+    const [isPolling, setIsPolling]     = useState(false);
+    const intervalRef = useRef(null);
+    const mountedRef  = useRef(true);
+
+    const stopPolling = useCallback(() => {
+        clearInterval(intervalRef.current);
+        setIsPolling(false);
+    }, []);
 
     const fetchOrders = useCallback(async (silent = false) => {
         if (!silent) setLoading(true);
@@ -41,7 +45,6 @@ export default function MyOrders() {
             const { data } = await api.get('/orders/my-orders');
             if (!mountedRef.current) return;
             setOrders(prev => {
-                // Detect status changes for toast notifications (silent polling only)
                 if (silent && prev.length > 0) {
                     data.forEach(newOrder => {
                         const old = prev.find(o => o._id === newOrder._id);
@@ -56,31 +59,23 @@ export default function MyOrders() {
                 return data;
             });
             setLastUpdated(new Date());
-            // Auto-expand most recent on first load
             if (!silent && data.length > 0) {
                 setExpandedId(prev => prev ?? data[0]._id);
             }
         } catch (err) {
             if (!mountedRef.current) return;
             if (!silent) setError(true);
-            // Silently stop polling on auth errors
             if (err.response?.status === 401) stopPolling();
         } finally {
             if (!mountedRef.current) return;
             if (!silent) setLoading(false);
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-
-    const stopPolling = () => {
-        clearInterval(intervalRef.current);
-        setIsPolling(false);
-    };
+    }, [stopPolling]);
 
     const startPolling = useCallback(() => {
         clearInterval(intervalRef.current);
         intervalRef.current = setInterval(() => {
-            fetchOrders(true); // silent = no loading spinner
+            fetchOrders(true);
         }, POLL_INTERVAL_MS);
         setIsPolling(true);
     }, [fetchOrders]);
@@ -88,7 +83,6 @@ export default function MyOrders() {
     useEffect(() => {
         mountedRef.current = true;
         fetchOrders(false).then(() => {
-            // Start polling after first fetch succeeds
             startPolling();
         });
         return () => {
@@ -97,16 +91,15 @@ export default function MyOrders() {
         };
     }, [fetchOrders, startPolling]);
 
-    // Stop polling when all orders are delivered
+    // Stop polling when all orders delivered
     useEffect(() => {
         if (orders.length > 0 && !hasActiveOrders(orders)) {
             stopPolling();
         }
-    }, [orders]);
+    }, [orders, stopPolling]);
 
     const toggle = (id) => setExpandedId(prev => prev === id ? null : id);
 
-    /* ── Loading ── */
     if (loading) {
         return (
             <div className="orders-page">
@@ -118,7 +111,6 @@ export default function MyOrders() {
         );
     }
 
-    /* ── Error ── */
     if (error) {
         return (
             <div className="orders-page">
@@ -126,13 +118,12 @@ export default function MyOrders() {
                     <div className="empty-icon">⚠️</div>
                     <h2>Something went wrong</h2>
                     <p>We couldn't fetch your orders. Please try again.</p>
-                    <button className="btn-retry" onClick={fetchOrders}>Retry</button>
+                    <button className="btn-retry" onClick={() => fetchOrders(false)}>Retry</button>
                 </div>
             </div>
         );
     }
 
-    /* ── Empty ── */
     if (orders.length === 0) {
         return (
             <div className="orders-page">
@@ -146,7 +137,6 @@ export default function MyOrders() {
         );
     }
 
-    /* ── Orders list ── */
     return (
         <div className="orders-page">
             <div className="orders-container">
@@ -186,7 +176,6 @@ export default function MyOrders() {
 
                         return (
                             <div key={order._id} className="order-card">
-                                {/* Header row — click to expand */}
                                 <div
                                     className="order-header"
                                     onClick={() => toggle(order._id)}
@@ -196,9 +185,7 @@ export default function MyOrders() {
                                     aria-expanded={isExpanded}
                                 >
                                     <div className="order-meta">
-                                        <span className="order-id">
-                                            #{order._id.slice(-8).toUpperCase()}
-                                        </span>
+                                        <span className="order-id">#{order._id.slice(-8).toUpperCase()}</span>
                                         <span className="order-date">{formatDate(order.createdAt)}</span>
                                         <span className="order-pizza-count">
                                             {order.pizzas.length} pizza{order.pizzas.length > 1 ? 's' : ''}
@@ -207,11 +194,7 @@ export default function MyOrders() {
                                     <div className="order-right">
                                         <span
                                             className="order-status-badge"
-                                            style={{
-                                                color: config.color,
-                                                background: config.bg,
-                                                borderColor: config.border
-                                            }}
+                                            style={{ color: config.color, background: config.bg, borderColor: config.border }}
                                         >
                                             {config.icon} {order.orderStatus}
                                         </span>
@@ -222,25 +205,18 @@ export default function MyOrders() {
                                     </div>
                                 </div>
 
-                                {/* Expanded detail */}
                                 {isExpanded && (
                                     <div className="order-details">
-
-                                        {/* Progress tracker */}
                                         <div className="status-track" aria-label="Order progress">
                                             {STATUSES.map((s, i) => {
                                                 const sc = STATUS_CONFIG[s];
-                                                const isDone = i <= currentStep;
+                                                const isDone   = i <= currentStep;
                                                 const isActive = i === currentStep;
                                                 return (
                                                     <React.Fragment key={s}>
                                                         <div className={`track-step ${isDone ? 'done' : ''} ${isActive ? 'active' : ''}`}>
-                                                            <div className="track-dot">
-                                                                {isDone ? '✓' : i + 1}
-                                                            </div>
-                                                            <span className="track-label">
-                                                                {sc.icon} {s}
-                                                            </span>
+                                                            <div className="track-dot">{isDone ? '✓' : i + 1}</div>
+                                                            <span className="track-label">{sc.icon} {s}</span>
                                                         </div>
                                                         {i < STATUSES.length - 1 && (
                                                             <div className={`track-connector ${i < currentStep ? 'done' : ''}`} />
@@ -250,7 +226,6 @@ export default function MyOrders() {
                                             })}
                                         </div>
 
-                                        {/* Pizza breakdown */}
                                         <div className="pizza-list">
                                             <h4>What you ordered</h4>
                                             {order.pizzas.map((pizza, idx) => (
@@ -261,9 +236,7 @@ export default function MyOrders() {
                                                         <span>🍅 {pizza.sauce}</span>
                                                         <span>🧀 {pizza.cheese}</span>
                                                         {pizza.vegetables?.length > 0
-                                                            ? pizza.vegetables.map(v => (
-                                                                <span key={v}>🥦 {v}</span>
-                                                            ))
+                                                            ? pizza.vegetables.map(v => <span key={v}>🥦 {v}</span>)
                                                             : <span className="tag-muted">No veggies</span>
                                                         }
                                                     </div>
@@ -271,21 +244,12 @@ export default function MyOrders() {
                                             ))}
                                         </div>
 
-                                        {/* Order footer */}
                                         <div className="order-footer">
-                                            <span
-                                                className={`payment-badge ${
-                                                    order.paymentStatus === 'Completed' ? 'paid' : 'pending'
-                                                }`}
-                                            >
+                                            <span className={`payment-badge ${order.paymentStatus === 'Completed' ? 'paid' : 'pending'}`}>
                                                 {order.paymentStatus === 'Completed' ? '✓ Paid' : order.paymentStatus}
                                             </span>
-                                            <span className="order-id-full">
-                                                Order ID: {order._id}
-                                            </span>
-                                            <Link to="/build" className="btn-reorder">
-                                                + Reorder
-                                            </Link>
+                                            <span className="order-id-full">Order ID: {order._id}</span>
+                                            <Link to="/build" className="btn-reorder">+ Reorder</Link>
                                         </div>
                                     </div>
                                 )}
